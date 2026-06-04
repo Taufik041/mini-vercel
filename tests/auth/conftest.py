@@ -1,22 +1,4 @@
-from main import app  # type: ignore
-from database import set_engine  # type: ignore
-from schemas import User  # type: ignore
-from security import hash as hash_password  # type: ignore
-from common.utils import create_access_token
-
 import os
-
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite://"
-os.environ.setdefault("SECRET_KEY", "test-secret-key-at-least-32-chars-long!!")
-os.environ.setdefault("ALGORITHM", "HS256")
-os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-os.environ.setdefault("ADMIN_ID", "00000000-0000-0000-0000-000000000001")
-os.environ.setdefault("ADMIN_NAME", "Admin")
-os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
-os.environ.setdefault("ADMIN_CREDS", "100.0")
-os.environ.setdefault("ADMIN_PASSWORD", "AdminPass123!")
-
-
 import pytest
 from uuid import uuid4
 from datetime import timedelta
@@ -25,11 +7,19 @@ from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.pool import StaticPool
 
+
 import sys
 
 _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(_here, "../../src/auth")))
 sys.path.insert(0, os.path.abspath(os.path.join(_here, "../../src")))
+
+from main import app  # noqa: E402 #type: ignore
+from database import set_engine  # noqa: E402 #type: ignore
+from schemas import User  # noqa: E402 #type: ignore
+from security import hash as hash_password  # noqa: E402 #type: ignore
+from common.utils import create_access_token  # noqa: E402
+
 
 _SQLITE_URL = "sqlite+aiosqlite://"
 _TEST_USER_EMAIL = "testuser@example.com"

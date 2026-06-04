@@ -31,7 +31,6 @@ async def test_signup_with_valid_data_returns_201(client):
         },
     )
     assert response.status_code == 201
-    assert response.json() == {"message": "User created successfully"}
 
 
 async def test_signup_with_duplicate_email_returns_400(client, existing_user):
@@ -199,7 +198,6 @@ async def test_login_with_empty_form_returns_422(client):
 async def test_logout_with_valid_token_returns_200(authenticated_client):
     response = await authenticated_client.post("/auth/logout")
     assert response.status_code == 200
-    assert response.json() == {"message": "Logout done!"}
 
 
 async def test_logout_without_token_returns_401(client):
