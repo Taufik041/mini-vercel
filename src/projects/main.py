@@ -1,9 +1,10 @@
 import os
 from contextlib import asynccontextmanager
+
+from database import init_db, set_engine
+from endpoints import router
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import create_async_engine
-from endpoints import router
-from database import set_engine, init_db
 
 
 @asynccontextmanager

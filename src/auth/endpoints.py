@@ -1,14 +1,16 @@
-from fastapi import APIRouter, status, Depends
+import os
+from datetime import timedelta
+
+from database import get_session
+from fastapi import APIRouter, Depends, status
 from fastapi.exceptions import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from database import get_session
+from schemas import SignUpReq, Token, User
+from security import hash_password, verify
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, col
-from schemas import User, Token, SignUpReq
-from security import verify, hash
+from sqlmodel import col, select
+
 from common.utils import create_access_token, verify_access_token
-from datetime import timedelta
-import os
 
 ACCESS_TOKEN_EXPIRE_MINUTES: float = float(
     os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 0)
@@ -75,7 +77,7 @@ async def signup(user_data: SignUpReq, db: AsyncSession = Depends(get_session)):
         name=user_data.name,
         email=user_data.email,
         creds=user_data.creds,
-        password=hash(user_data.password),
+        password=hash_password(user_data.password),
         is_active=True,
     )
 

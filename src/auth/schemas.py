@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field
+
+from pydantic import BaseModel, EmailStr
+from sqlmodel import Field, SQLModel
 
 
 class User(SQLModel, table=True):

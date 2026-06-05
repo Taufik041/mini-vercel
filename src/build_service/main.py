@@ -1,13 +1,13 @@
 import asyncio
-import aio_pika
-import os
 import json
+import os
+
+import aio_pika
 
 
 async def handle_message(message: aio_pika.abc.AbstractIncomingMessage):
     async with message.process():
-        data = json.loads(message.body)
-        print(f"Received build job: {data}")
+        json.loads(message.body)
 
 
 async def main():
@@ -18,10 +18,8 @@ async def main():
                 channel = await connection.channel()
                 queue = await channel.declare_queue("build_jobs", durable=True)
                 await queue.consume(handle_message)
-                print("Build service waiting for jobs...")
                 await asyncio.Future()
-        except Exception as e:
-            print(f"Connection failed: {e}. Retrying in 5 seconds...")
+        except Exception:
             await asyncio.sleep(5)
 
 

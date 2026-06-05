@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends
-from fastapi.exceptions import HTTPException
-from models import CreateProjectReq, ProjectOut, Project, EnvVar
-from database import get_session
-from sqlmodel import select
-import uuid
-import os
-from sqlalchemy.ext.asyncio import AsyncSession
-from common.utils import verify_access_token, get_fernet
-import aio_pika
 import json
+import os
+import uuid
 from datetime import datetime
+
+import aio_pika
+from database import get_session
+from fastapi import APIRouter, Depends, status
+from fastapi.exceptions import HTTPException
+from models import CreateProjectReq, EnvVar, Project, ProjectOut
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
+from common.utils import get_fernet, verify_access_token
 
 router = APIRouter(tags=["projects"])
 
@@ -18,7 +21,9 @@ def get_current_user(payload: dict = Depends(verify_access_token)) -> uuid.UUID:
     try:
         return uuid.UUID(payload["sub"])
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token payload")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+        ) from None
 
 
 @router.post("/projects", response_model=ProjectOut)
@@ -36,7 +41,14 @@ async def create_project(
         port=body.port,
     )
     session.add(project)
-    await session.flush()  # get project.id before adding env vars
+    try:
+        await session.flush()  # get project.id before adding env vars
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project name already exists",
+        ) from None
 
     for ev in body.env_vars:
         session.add(
@@ -69,7 +81,9 @@ async def get_project(
 ):
     project = await session.get(Project, project_id)
     if not project or project.owner_id != owner_id:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
     return project
 
 
@@ -81,7 +95,9 @@ async def delete_project(
 ):
     project = await session.get(Project, project_id)
     if not project or project.owner_id != owner_id:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
     await session.delete(project)
     await session.commit()
 
@@ -94,7 +110,9 @@ async def deploy_project(
 ):
     project = await session.get(Project, project_id)
     if not project or project.owner_id != owner_id:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
 
     project.status = "building"
     project.updated_at = datetime.utcnow()

@@ -1,22 +1,27 @@
 import os
 import sys
+import uuid
 from datetime import timedelta
-from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
+# At the top of tests/projects/conftest.py, before imports
+# Remove any previously imported 'main' to avoid auth's main bleeding in
+for mod in list(sys.modules.keys()):
+    if mod in ("main", "database", "models", "endpoints"):
+        del sys.modules[mod]
+
+
 _here = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "../../src/auth")))
+sys.path.insert(0, os.path.abspath(os.path.join(_here, "../../src/projects")))
 sys.path.insert(0, os.path.abspath(os.path.join(_here, "../../src")))
 
 from database import set_engine  # noqa: E402 #type: ignore
 from main import app  # noqa: E402 #type: ignore
-from schemas import User  # noqa: E402 #type: ignore
-from security import hash_password  # noqa: E402 #type: ignore
 
 from common.utils import create_access_token  # noqa: E402
 
@@ -43,6 +48,12 @@ async def test_engine():
 
 
 @pytest.fixture
+def auth_headers():
+    token = create_access_token({"sub": str(uuid.uuid4())}, timedelta(minutes=30))
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
 async def client(test_engine):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
@@ -51,31 +62,15 @@ async def client(test_engine):
 
 
 @pytest.fixture
-async def existing_user(test_engine):
-    async with AsyncSession(test_engine) as session:
-        user = User(
-            id=uuid4(),
-            name="Test User",
-            email=_TEST_USER_EMAIL,
-            creds=10.0,
-            password=hash_password(_TEST_USER_PASSWORD),
-            is_active=True,
-        )
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
-        return user
-
-
-@pytest.fixture
-async def valid_token(existing_user):
-    return create_access_token(
-        data={"user_id": str(existing_user.id)},
-        expires_delta=timedelta(minutes=30),
+async def existing_project(client, auth_headers):
+    response = await client.post(
+        "/projects",
+        json={
+            "name": "existing-app",
+            "git_url": "https://github.com/test/repo",
+            "port": 3000,
+        },
+        headers=auth_headers,
     )
-
-
-@pytest.fixture
-async def authenticated_client(client, valid_token):
-    client.headers.update({"Authorization": f"Bearer {valid_token}"})
-    yield client
+    assert response.status_code == 200
+    return response.json()

@@ -1,21 +1,22 @@
-import uuid
-from datetime import datetime
-from typing import Optional
-from sqlmodel import SQLModel, Field, Relationship
-from pydantic import BaseModel, field_validator
 import re
+import uuid
+from datetime import datetime, timezone
+
+from pydantic import BaseModel, field_validator
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class Project(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(unique=True, index=True)
     owner_id: uuid.UUID
-    git_url: Optional[str] = None
+    git_url: str | None = None
     status: str = Field(default="pending")
-    live_url: Optional[str] = None
+    live_url: str | None = None
     port: int = Field(default=3000)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # change these two fields
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     env_vars: list["EnvVar"] = Relationship(back_populates="project")
 
@@ -26,7 +27,7 @@ class EnvVar(SQLModel, table=True):
     key: str
     value: str
 
-    project: Optional[Project] = Relationship(back_populates="env_vars")
+    project: Project | None = Relationship(back_populates="env_vars")
 
 
 class EnvVarIn(BaseModel):
@@ -36,7 +37,7 @@ class EnvVarIn(BaseModel):
 
 class CreateProjectReq(BaseModel):
     name: str
-    git_url: Optional[str] = None
+    git_url: str | None = None
     port: int = 3000
     env_vars: list[EnvVarIn] = []
 
@@ -54,9 +55,9 @@ class ProjectOut(BaseModel):
     id: uuid.UUID
     name: str
     owner_id: uuid.UUID
-    git_url: Optional[str]
+    git_url: str | None
     status: str
-    live_url: Optional[str]
+    live_url: str | None
     port: int
     created_at: datetime
     updated_at: datetime

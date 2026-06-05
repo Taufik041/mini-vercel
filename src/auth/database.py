@@ -1,10 +1,10 @@
-from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlmodel import select
-from uuid import UUID
 import os
+from uuid import UUID
+
 from schemas import User
-from security import hash
+from security import hash_password
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlmodel import SQLModel, select
 
 _engine = None
 _factory = None
@@ -52,7 +52,7 @@ async def init_db():
                     name=os.environ.get("ADMIN_NAME", ""),
                     email=os.environ.get("ADMIN_EMAIL", ""),
                     creds=float(os.environ.get("ADMIN_CREDS", 0.0)),
-                    password=hash(os.environ.get("ADMIN_PASSWORD", "")),
+                    password=hash_password(os.environ.get("ADMIN_PASSWORD", "")),
                     is_active=True,
                 )
             )
