@@ -30,7 +30,6 @@ async def login(
         .scalars()
         .first()
     )
-    print(existing_user)
     if not existing_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
@@ -43,7 +42,7 @@ async def login(
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"user_id": str(existing_user.id)}, expires_delta=access_token_expires
+        data={"sub": str(existing_user.id)}, expires_delta=access_token_expires
     )
 
     return Token(access_token=access_token, token_type="bearer")
@@ -86,7 +85,7 @@ async def signup(user_data: SignUpReq, db: AsyncSession = Depends(get_session)):
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"user_id": str(new_user.id)}, expires_delta=access_token_expires
+        data={"sub": str(new_user.id)}, expires_delta=access_token_expires
     )
 
     return Token(access_token=access_token, token_type="bearer")
