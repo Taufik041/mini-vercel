@@ -4,9 +4,12 @@ from models import CreateProjectReq, ProjectOut, Project, EnvVar
 from database import get_session
 from sqlmodel import select
 import uuid
+import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from common.utils import verify_access_token, get_fernet
-
+import aio_pika
+import json
+from datetime import datetime
 
 router = APIRouter(tags=["projects"])
 
@@ -81,3 +84,32 @@ async def delete_project(
         raise HTTPException(status_code=404, detail="Project not found")
     await session.delete(project)
     await session.commit()
+
+
+@router.post("/projects/{project_id}/deploy", status_code=202)
+async def deploy_project(
+    project_id: uuid.UUID,
+    owner_id: uuid.UUID = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    project = await session.get(Project, project_id)
+    if not project or project.owner_id != owner_id:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.status = "building"
+    project.updated_at = datetime.utcnow()
+    await session.commit()
+
+    connection = await aio_pika.connect_robust(os.environ["RABBITMQ_URL"])
+    async with connection:
+        channel = await connection.channel()
+        await channel.declare_queue("build_jobs", durable=True)
+        await channel.default_exchange.publish(
+            aio_pika.Message(
+                body=json.dumps({"project_id": str(project.id)}).encode(),
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+            ),
+            routing_key="build_jobs",
+        )
+
+    return {"message": "Build queued", "project_id": str(project.id)}
